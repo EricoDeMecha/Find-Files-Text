@@ -1,0 +1,4 @@
+findfiles
+.qmake.stash
+*.autosave
+*.o
