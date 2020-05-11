@@ -27,6 +27,7 @@ private  slots:
 
 private:
     QStringList findFiles(const QStringList &files, const QString &text);
+    QStringList findExtension(const QStringList  &files, const QString &extension);
     void showFiles(const QStringList &paths);
     QComboBox* createComboBox(const QString &text = QString());
     void createFilesTable();
@@ -34,6 +35,7 @@ private:
     QComboBox *fileComboBox;
     QComboBox *textComboBox;
     QComboBox *directoryComboBox;
+    QComboBox *extensionsComboBox;
     QLabel *filesFoundLabel;
     QPushButton *findButton;
     QTableWidget *filesTable;

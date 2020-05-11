@@ -19,7 +19,7 @@ enum { absoluteFileNameRole = Qt::UserRole + 1};
 
 FindFiles::FindFiles(QWidget *parent): QWidget(parent)
 {
-    setWindowTitle(tr("Find Files"));
+    setWindowTitle(tr("Find files and text in files"));
     QPushButton *browseButton = new QPushButton(tr("&Browse..."),this);
     connect(browseButton, &QAbstractButton::clicked, this, &FindFiles::browse);
     findButton = new QPushButton(tr("&Find"), this);
@@ -31,21 +31,25 @@ FindFiles::FindFiles(QWidget *parent): QWidget(parent)
     connect(textComboBox->lineEdit(), &QLineEdit::returnPressed, this, &FindFiles::animateFindClick);
     directoryComboBox = createComboBox(QDir::toNativeSeparators(QDir::currentPath()));
     connect(directoryComboBox->lineEdit(), &QLineEdit::returnPressed, this, &FindFiles::animateFindClick);
+    extensionsComboBox = createComboBox(tr("cpp"));
+    connect(extensionsComboBox->lineEdit(), &QLineEdit::returnPressed, this, &FindFiles::animateFindClick);
 
     filesFoundLabel = new QLabel;
     createFilesTable();
 
     QGridLayout *mainLayout = new QGridLayout(this);
-    mainLayout->addWidget(new QLabel(tr("Named: ")),0,0);
+    mainLayout->addWidget(new QLabel(tr("Filename: ")),0,0);
     mainLayout->addWidget(fileComboBox,0,1,1,2);
     mainLayout->addWidget(new QLabel(tr("Containing text: ")), 1,0);
     mainLayout->addWidget(textComboBox,1,1,1,2);
-    mainLayout->addWidget(new QLabel(tr("In directory: ")),2,0);
-    mainLayout->addWidget(directoryComboBox,2,1);
-    mainLayout->addWidget(browseButton,2,2);
-    mainLayout->addWidget(filesTable,3,0,1,3);
-    mainLayout->addWidget(filesFoundLabel,4,0,1,2);
-    mainLayout->addWidget(findButton,4,2);
+    mainLayout->addWidget(new QLabel("With extension e.g pdf"), 2,0);
+    mainLayout->addWidget(extensionsComboBox, 2,1);
+    mainLayout->addWidget(new QLabel(tr("In directory: ")),3,0);
+    mainLayout->addWidget(directoryComboBox,3,1);
+    mainLayout->addWidget(browseButton,3,2);
+    mainLayout->addWidget(filesTable,4,0,1,3);
+    mainLayout->addWidget(filesFoundLabel,5,0,1,2);
+    mainLayout->addWidget(findButton,5,2);
 
     connect(new QShortcut(QKeySequence::Quit,this), &QShortcut::activated,qApp, &QApplication::quit);
 }
@@ -63,7 +67,7 @@ static inline void openFile(const QString &fileName)
 
 void FindFiles::browse()
 {
-    QString directory = QDir::toNativeSeparators(QFileDialog::getExistingDirectory(this,tr("find files"),QDir::currentPath()));
+    QString directory = QDir::toNativeSeparators(QFileDialog::getExistingDirectory(this,tr("[INFO] Navigate"),QDir::currentPath()));
     if(!directory.isEmpty())
     {
         if(directoryComboBox->findText(directory) ==  -1)
@@ -81,10 +85,11 @@ void FindFiles::find()
     QString fileName =fileComboBox->currentText();
     QString text = textComboBox->currentText();
     QString path =  QDir::cleanPath(directoryComboBox->currentText());
+    QString fileExtension = extensionsComboBox->currentText();
     currentDir = QDir(path);
 
     QStringList filter;
-    if(!fileName.isEmpty())
+    if(!fileName.isEmpty() || !fileExtension.isEmpty())
     {
         filter << fileName;
     }
@@ -94,6 +99,10 @@ void FindFiles::find()
     while(it.hasNext())
     {
         files << it.next();
+    }
+    if(!fileExtension.isEmpty())
+    {
+        files = findExtension(files , fileExtension);
     }
     if(!text.isEmpty())
     {
@@ -141,9 +150,9 @@ QStringList FindFiles::findFiles(const QStringList &files, const QString &text)
 {
     QProgressDialog progressDialog(this);
 
-    progressDialog.setCancelButtonText(tr("&Cancel"));
+    progressDialog.setCancelButtonText(tr("Cancel"));
     progressDialog.setRange(0, files.size());
-    progressDialog.setWindowTitle(tr("&Find Files"));
+    progressDialog.setWindowTitle(tr("Find Files"));
 
     QMimeDatabase mimeDatabase;
     QStringList foundFiles;
@@ -183,6 +192,35 @@ QStringList FindFiles::findFiles(const QStringList &files, const QString &text)
         }
     }
     return foundFiles;
+}
+
+QStringList FindFiles::findExtension(const QStringList &files, const QString &extension)
+{
+    QProgressDialog progressDialog(this);
+
+    progressDialog.setCancelButtonText(tr("quit"));
+    progressDialog.setRange(0, files.size());
+    progressDialog.setWindowTitle(tr("Find files with ext."));
+
+    QStringList filesFound;
+    QMimeDatabase db;
+    for(int i = 0; i < files.size(); ++i)
+    {
+        progressDialog.setValue(i);
+        progressDialog.setLabelText(tr("Determining file number %1 of %n...", nullptr, files.size()).arg(i));
+        QCoreApplication::processEvents();
+        if(progressDialog.wasCanceled())
+            break;
+        const QString fileName = files.at(i);
+        QMimeType  mime  = db.mimeTypeForFile(fileName);
+        const QString fileExtension = mime.preferredSuffix();
+
+        if(fileExtension == extension)
+        {
+            filesFound << files[i];
+        }
+    }
+    return filesFound;
 }
 
 void FindFiles::showFiles(const QStringList &paths)
